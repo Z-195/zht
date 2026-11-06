@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>🎂 张贺亭 生日快乐</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; font-family: system-ui, sans-serif; background: #111; color: #fff; }
+#root { width: 100vw; height: 100vh; }
+.ctrl-panel {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  z-index: 10;
+}
+button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 999px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.btn-blow {
+  background: #ff7878;
+  color: white;
+}
+.btn-blow:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+.btn-reset {
+  background: #fff;
+  color: #222;
+}
+.tip-text{
+  position: fixed;
+  top:20px;
+  left:50%;
+  transform: translateX(-50%);
+  background:rgba(0,0,0,0.55);
+  padding:8px 16px;
+  border-radius:999px;
+  font-size:14px;
+  z-index:10;
+}
+.birthday-text{
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2rem, 10vw, 5rem);
+  font-weight: bold;
+  color: #ffdd44;
+  text-shadow: 0 0 16px #ff9922, 0 0 32px #ff5522;
+  z-index: 20;
+  pointer-events: none;
+  animation: pop 0.8s ease-out forwards;
+}
+@keyframes pop {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  60% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@19/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@19/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/three@0.164.0/build/three.min.js"></script>
+<script src="https://unpkg.com/@react-three/fiber@9.0.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@react-three/drei@9.105.0/dist/index.umd.js"></script>
+
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+const { Canvas, useFrame } = ReactThreeFiber;
+const { OrbitControls, Sphere, Cylinder, Cone } = Drei;
+
+// 烟雾粒子
+function Smoke({ active, origin }) {
+  const [list, setList] = useState([]);
+  const maxSmoke = 18;
+  useEffect(() => {
+    if (!active) return;
+    const newSmoke = Array.from({ length: maxSmoke }, (_, i) => ({
+      id: Date.now() + i,
+      x: origin[0] + (Math.random() - 0.5) * 0.15,
+      y: origin[1],
+      z: origin[2] + (Math.random() - 0.5) * 0.15,
+      vx: (Math.random() - 0.5) * 0.015,
+      vy: Math.random() * 0.025 + 0.01,
+      vz: (Math.random() - 0.5) * 0.015,
+      scale: Math.random() * 0.2 + 0.08,
+      life: 1,
+    }));
+    setList(newSmoke);
+  }, [active, origin]);
+
+  useFrame(() => {
+    setList(prev => prev
+      .map(p => ({
+        ...p,
+        x: p.x + p.vx,
+        y: p.y + p.vy,
+        z: p.z + p.vz,
+        life: p.life - 0.008,
+        scale: p.scale * 1.008,
+      }))
+      .filter(p => p.life > 0)
+    )
+  })
+
+  return (
+    <>
+      {list.map(p => (
+        <Sphere key={p.id} args={[0.04, 6, 6]} position={[p.x, p.y, p.z]} scale={p.scale}>
+          <meshStandardMaterial color="#dddddd" transparent opacity={p.life * 0.6} />
+        </Sphere>
+      ))}
+    </>
+  )
+}
+
+// 礼花彩带粒子
+function Confetti({ active }) {
+  const [list, setList] = useState([]);
+  const maxConfetti = 45;
+  useEffect(() => {
+    if (!active) return;
+    const colors = ['#ff4466','#ffdd44','#44ddff','#77ff77','#dd44ff'];
+    const newConfetti = Array.from({ length: maxConfetti }, (_, i) => ({
+      id: Date.now() + i,
+      x: (Math.random()-0.5)*2.2,
+      y: 1.4,
+      z: (Math.random()-0.5)*2.2,
+      vx: (Math.random()-0.5)*0.07,
+      vy: Math.random()*0.08 + 0.04,
+      vz: (Math.random()-0.5)*0.07,
+      rotX: Math.random()*Math.PI*2,
+      rotY: Math.random()*Math.PI*2,
+      color: colors[i%colors.length],
+      life: 1,
+    }));
+    setList(newConfetti);
+  }, [active])
+
+  useFrame(()=>{
+    setList(prev => prev
+      .map(p=>({
+        ...p,
+        x:p.x+p.vx,
+        y:p.y+p.vy - 0.0035,
+        z:p.z+p.vz,
+        rotX: p.rotX + 0.08,
+        rotY: p.rotY + 0.05,
+        life: p.life - 0.006
+      }))
+      .filter(p=>p.life>0)
+    )
+  })
+
+  return <>
+    {list.map(p=>(
+      <mesh key={p.id} position={[p.x,p.y,p.z]} rotation={[p.rotX,p.rotY,0]}>
+        <planeGeometry args={[0.08,0.04]} />
+        <meshStandardMaterial color={p.color} side={THREE.DoubleSide} transparent opacity={p.life} />
+      </mesh>
+    ))}
+  </>
+}
+
+// 火焰
+function Flame({ blowing, extinguished }) {
+  const flameRef = useRef(null);
+  const groupRef = useRef(null);
+  useFrame((state) => {
+    if (!flameRef.current || !groupRef.current) return;
+    const t = state.clock.getElapsedTime();
+    if (extinguished) {
+      flameRef.current.scale.y = 0;
+      return;
+    }
+    if (blowing) {
+      flameRef.current.scale.y = Math.max(0, flameRef.current.scale.y - 0.04);
+      groupRef.current.rotation.z = Math.sin(t * 12) * 0.25;
+    } else {
+      flameRef.current.scale.y = THREE.MathUtils.lerp(flameRef.current.scale.y, 1, 0.08);
+      groupRef.current.rotation.z = Math.sin(t * 6) * 0.06;
+    }
+  })
+  return (
+    <group ref={groupRef} position={[0, 1.62, 0]}>
+      <Cone ref={flameRef} args={[0.06, 0.22, 8]} position={[0, 0.11, 0]}>
+        <meshStandardMaterial color="#ffaa33" emissive="#ff7722" emissiveIntensity={1.2} />
+      </Cone>
+    </group>
+  )
+}
+
+// 单根蜡烛
+function Candle({ blowing, extinguished, pos }) {
+  return (
+    <group position={pos}>
+      <Cylinder args={[0.07, 0.07, 0.7, 10]} position={[0, 1.18, 0]}>
+        <meshStandardMaterial color="#fff8ee" />
+      </Cylinder>
+      <Flame blowing={blowing} extinguished={extinguished} />
+      <Smoke active={extinguished} origin={[pos[0], 1.62, pos[2]]} />
+    </group>
+  )
+}
+
+// 蛋糕主体 + 多根蜡烛
+function Cake({ blowing, extinguished }) {
+  // 蜡烛摆放位置
+  const candlePositions = [
+    [0, 0, 0],
+    [0.7, 0, 0],
+    [-0.7, 0, 0],
+    [0, 0, 0.7],
+    [0, 0, -0.7],
+  ]
+  return (
+    <group>
+      <Cylinder args={[2.2, 2.2, 1, 16]} position={[0, 0.5, 0]}>
+        <meshStandardMaterial color="#f8c898" />
+      </Cylinder>
+      <Cylinder args={[2.15, 2.15, 0.35, 16]} position={[0, 1.18, 0]}>
+        <meshStandardMaterial color="#fff2f8" />
+      </Cylinder>
+      {[
+        [-1.2, 1.22, 0], [1.2, 1.22, 0], [0, 1.22, 1.2], [0, 1.22, -1.2],
+        [-0.7, 1.22, -0.7], [0.7, 1.22, -0.7], [-0.7, 1.22, 0.7], [0.7, 1.22, 0.7]
+      ].map((pos, i) => (
+        <Sphere key={i} args={[0.07, 5, 5]} position={pos}>
+          <meshStandardMaterial color={['#ff5577','#55ddff','#ffee55','#77ff77'][i%4]} />
+        </Sphere>
+      ))}
+      {candlePositions.map((p,idx)=>(
+        <Candle key={idx} blowing={blowing} extinguished={extinguished} pos={p} />
+      ))}
+    </group>
+  )
+}
+
+// 3D场景
+function Scene({ blowing, extinguished }) {
+  return (
+    <>
+      <ambientLight intensity={0.45} />
+      <pointLight position={[4, 4, 4]} intensity={0.8} color="#fffdf0" />
+      <pointLight position={[-4, 2, -4]} intensity={0.4} color="#ffddbb" />
+      <Cake blowing={blowing} extinguished={extinguished} />
+      <Confetti active={extinguished} />
+      <OrbitControls enableDamping dampingFactor={0.05} minDistance={3.5} maxDistance={10} />
+      <gridHelper args={[12, 12, '#444444', '#222222']} position={[0,-0.01,0]} />
+    </>
+  )
+}
+
+// 麦克风检测hook
+function useMicBlowDetection(onBlowDetect, canTrigger) {
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const dataArrayRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(null);
+  const threshold = 0.18;
+
+  const startListen = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = audioCtx;
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      const bufferLength = analyser.frequencyBinCount;
+      dataArrayRef.current = new Uint8Array(bufferLength);
+
+      function loop() {
+        if (!analyserRef.current || !canTrigger) {
+          rafRef.current = requestAnimationFrame(loop);
+          return;
+        }
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        let sum = 0;
+        for(let i=0;i<dataArrayRef.current.length;i++) sum += dataArrayRef.current[i];
+        const avg = sum / dataArrayRef.current.length / 255;
+        if(avg > threshold) {
+          onBlowDetect();
+        }
+        rafRef.current = requestAnimationFrame(loop);
+      }
+      loop();
+    } catch(err) {
+      console.error("麦克风权限失败", err);
+    }
+  }, [onBlowDetect, canTrigger]);
+
+  const stopListen = useCallback(()=>{
+    if(rafRef.current) cancelAnimationFrame(rafRef.current);
+    if(streamRef.current) streamRef.current.getTracks().forEach(t=>t.stop());
+    if(audioCtxRef.current) audioCtxRef.current.close();
+  },[])
+
+  useEffect(()=>{
+    startListen();
+    return ()=> stopListen();
+  },[startListen, stopListen])
+}
+
+// 背景音乐
+function useBirthAudio(playFlag) {
+  const audioRef = useRef(null);
+  useEffect(()=>{
+    if(!audioRef.current){
+      audioRef.current = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3");
+      audioRef.current.volume = 0.6;
+    }
+    if(playFlag) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e=>console.log("音频播放限制"))
+    }
+  },[playFlag])
+}
+
+// App
+function App() {
+  const [state, setState] = useState('WAITING');
+  const extinguished = state === 'BLOWN';
+  const blowing = state === 'BLOWING';
+  const canBlow = state === 'WAITING';
+
+  const triggerBlow = useCallback(()=>{
+    if(!canBlow) return;
+    setState('BLOWING');
+    setTimeout(()=>setState('BLOWN'),1200);
+  },[canBlow])
+
+  useMicBlowDetection(triggerBlow, canBlow);
+  useBirthAudio(extinguished);
+
+  const handleReset = useCallback(() => {
+    setState('WAITING');
+  }, [])
+
+  return (
+    <>
+      <Canvas camera={{ position: [0, 3.2, 5.5], fov: 48 }} shadows>
+        <Scene blowing={blowing} extinguished={extinguished} />
+      </Canvas>
+      <div className="tip-text">🎤 对着麦克风吹气，吹灭蜡烛</div>
+      <div className="ctrl-panel">
+        <button className="btn-blow" onClick={triggerBlow} disabled={!canBlow}>
+          🎂 吹气
+        </button>
+        <button className="btn-reset" onClick={handleReset}>
+          🔄 重置
+        </button>
+      </div>
+      {extinguished && <div className="birthday-text">张贺亭 生日快乐！</div>}
+    </>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
